@@ -1,0 +1,41 @@
+order_id,customer_id,order_date,product_id,quantity,unit_price,total_amount,payment_method,order_status,shipping_address,delivery_date
+1001,5,2024-03-01,101,1,79.99,79.99,Credit Card,Delivered,"1234 Oak St, Phoenix, AZ 85001",2024-03-05
+1002,12,2024-03-02,107,2,119.99,239.98,PayPal,Delivered,"5678 Pine Ave, Jacksonville, FL 32099",2024-03-07
+1003,3,2024-03-02,115,1,44.99,44.99,Debit Card,Delivered,"9012 Elm Rd, Chicago, IL 60601",2024-03-06
+1004,18,2024-03-03,105,1,299.99,299.99,Credit Card,Delivered,"3456 Maple Dr, Seattle, WA 98101",2024-03-08
+1005,7,2024-03-04,110,3,49.99,149.97,Credit Card,Delivered,"7890 Cedar Ln, San Antonio, TX 78201",2024-03-09
+1006,22,2024-03-05,102,1,249.99,249.99,PayPal,Delivered,"2345 Birch St, Detroit, MI 48201",2024-03-12
+1007,1,2024-03-06,116,1,49.99,49.99,Credit Card,Shipped,"6789 Walnut Ave, New York, NY 10001",2024-03-13
+1008,15,2024-03-06,104,2,39.99,79.98,Debit Card,Delivered,"1123 Spruce Rd, Charlotte, NC 28201",2024-03-11
+1009,9,2024-03-07,118,1,89.99,89.99,Credit Card,Delivered,"4567 Ash Dr, Dallas, TX 75201",2024-03-14
+1010,28,2024-03-08,103,4,24.99,99.96,PayPal,Processing,"8901 Poplar Ln, Albuquerque, NM 87101",
+1011,4,2024-03-09,127,1,69.99,69.99,Credit Card,Shipped,"2234 Willow St, Houston, TX 77001",2024-03-16
+1012,19,2024-03-10,111,2,59.99,119.98,Debit Card,Delivered,"5567 Oak Ave, Denver, CO 80201",2024-03-15
+1013,11,2024-03-11,122,2,39.99,79.98,Credit Card,Processing,"8890 Pine Rd, Austin, TX 73301",
+1014,2,2024-03-12,106,1,89.99,89.99,PayPal,Delivered,"1112 Elm Dr, Los Angeles, CA 90001",2024-03-17
+1015,25,2024-03-13,113,3,19.99,59.97,Credit Card,Shipped,"3345 Maple Ln, Memphis, TN 37501",2024-03-20
+1016,14,2024-03-14,121,1,69.99,69.99,Debit Card,Delivered,"6678 Cedar St, Columbus, OH 43004",2024-03-19
+1017,8,2024-03-15,108,1,54.99,54.99,Credit Card,Delivered,"9901 Birch Ave, San Diego, CA 92101",2024-03-20
+1018,30,2024-03-16,114,2,79.99,159.98,PayPal,Processing,"2223 Walnut Rd, Fresno, CA 93650",
+1019,6,2024-03-17,125,1,34.99,34.99,Credit Card,Shipped,"4456 Spruce Dr, Philadelphia, PA 19019",2024-03-24
+1020,17,2024-03-18,109,3,34.99,104.97,Debit Card,Delivered,"7789 Ash Ln, Indianapolis, IN 46201",2024-03-23
+1021,23,2024-03-19,120,5,14.99,74.95,Credit Card,Delivered,"1001 Poplar St, Portland, OR 97201",2024-03-24
+1022,10,2024-03-20,112,1,29.99,29.99,PayPal,Processing,"3334 Willow Ave, San Jose, CA 95101",
+1023,27,2024-03-21,119,2,39.99,79.98,Credit Card,Shipped,"5567 Oak Rd, Milwaukee, WI 53201",2024-03-28
+1024,13,2024-03-22,124,4,24.99,99.96,Debit Card,Delivered,"8890 Pine Dr, Fort Worth, TX 76101",2024-03-27
+1025,21,2024-03-23,107,1,119.99,119.99,Credit Card,Processing,"1112 Elm Ln, Nashville, TN 37201",
+1026,16,2024-03-24,117,2,19.99,39.98,PayPal,Shipped,"2245 Maple St, San Francisco, CA 94102",2024-03-31
+1027,24,2024-03-25,123,1,79.99,79.99,Credit Card,Delivered,"4478 Cedar Ave, Las Vegas, NV 89101",2024-03-30
+1028,29,2024-03-26,128,2,29.99,59.98,Debit Card,Processing,"6701 Birch Rd, Tucson, AZ 85701",
+1029,20,2024-03-27,101,1,79.99,79.99,Credit Card,Shipped,"9034 Walnut Dr, Boston, MA 02101",2024-04-03
+1030,26,2024-03-28,126,1,29.99,29.99,PayPal,Processing,"1267 Spruce Ln, Baltimore, MD 21201",
+1031,5,2024-03-29,130,5,12.99,64.95,Credit Card,Delivered,"1234 Oak St, Phoenix, AZ 85001",2024-04-02
+1032,12,2024-03-30,129,2,24.99,49.98,Debit Card,Shipped,"5678 Pine Ave, Jacksonville, FL 32099",2024-04-05
+1033,3,2024-03-31,127,1,69.99,69.99,PayPal,Processing,"9012 Elm Rd, Chicago, IL 60601",
+1034,18,2024-04-01,105,1,299.99,299.99,Credit Card,Pending,"3456 Maple Dr, Seattle, WA 98101",
+1035,7,2024-04-02,118,1,89.99,89.99,Debit Card,Pending,"7890 Cedar Ln, San Antonio, TX 78201",
+1036,1,2024-04-03,102,1,249.99,249.99,Credit Card,Pending,"6789 Walnut Ave, New York, NY 10001",
+1037,15,2024-04-04,111,1,59.99,59.99,PayPal,Pending,"1123 Spruce Rd, Charlotte, NC 28201",
+1038,9,2024-04-05,116,2,49.99,99.98,Credit Card,Pending,"4567 Ash Dr, Dallas, TX 75201",
+1039,4,2024-04-06,122,1,39.99,39.99,Debit Card,Pending,"2234 Willow St, Houston, TX 77001",
+1040,19,2024-04-07,104,3,39.99,119.97,PayPal,Pending,"5567 Oak Ave, Denver, CO 80201",

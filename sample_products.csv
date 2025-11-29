@@ -1,0 +1,31 @@
+product_id,product_name,category,brand,price,stock_quantity,supplier,weight_kg,dimensions,rating,release_date
+101,Wireless Bluetooth Headphones,Electronics,SoundMax,79.99,145,TechSupply Co,0.25,20x18x8cm,4.5,2023-06-15
+102,Ergonomic Office Chair,Furniture,ComfortZone,249.99,67,FurniturePlus,12.5,65x65x120cm,4.7,2023-03-20
+103,Stainless Steel Water Bottle,Home & Kitchen,HydroFlow,24.99,320,EcoGoods Ltd,0.35,8x8x26cm,4.6,2023-08-10
+104,Yoga Mat Premium,Sports & Fitness,FlexFit,39.99,198,SportGear Inc,1.2,183x61x0.6cm,4.8,2023-05-05
+105,Smart Watch Series 5,Electronics,TechPro,299.99,89,TechSupply Co,0.05,4.5x3.8x1.2cm,4.4,2024-01-12
+106,Coffee Maker Deluxe,Home & Kitchen,BrewMaster,89.99,124,ApplianceHub,2.8,35x22x38cm,4.5,2023-09-22
+107,Running Shoes Ultra,Sports & Fitness,SpeedRunner,119.99,203,SportGear Inc,0.45,Various sizes,4.7,2023-11-30
+108,Laptop Backpack,Bags & Luggage,TravelEase,54.99,156,BagWorld,0.8,45x30x15cm,4.6,2023-07-18
+109,LED Desk Lamp,Home & Office,BrightLight,34.99,245,LightingPro,0.6,40x15x15cm,4.3,2023-10-05
+110,Protein Powder Vanilla,Health & Wellness,NutriPro,49.99,287,HealthSupply,2.0,25x15x15cm,4.5,2024-02-14
+111,Gaming Mouse RGB,Electronics,GameMaster,59.99,178,TechSupply Co,0.12,12x7x4cm,4.6,2023-12-08
+112,Cookbook Mediterranean,Books,Culinary Press,29.99,95,BookDistributors,0.8,28x21x2cm,4.8,2023-04-25
+113,Resistance Bands Set,Sports & Fitness,FlexFit,19.99,412,SportGear Inc,0.3,30x20x5cm,4.4,2023-08-30
+114,Electric Toothbrush,Personal Care,DentalCare Pro,79.99,164,HealthSupply,0.25,24x6x6cm,4.7,2024-01-20
+115,Non-Stick Frying Pan,Home & Kitchen,ChefMaster,44.99,189,ApplianceHub,1.2,28cm diameter,4.5,2023-06-12
+116,Bluetooth Speaker Portable,Electronics,SoundMax,49.99,223,TechSupply Co,0.4,18x8x8cm,4.6,2023-09-15
+117,Planner 2024,Stationery,OrganizerPro,19.99,341,OfficeMax,0.4,22x15x2cm,4.5,2023-11-01
+118,Dumbbell Set 20kg,Sports & Fitness,IronFit,89.99,78,SportGear Inc,20.0,Various,4.7,2023-05-18
+119,Essential Oil Diffuser,Home & Wellness,AromaPure,39.99,267,HealthSupply,0.5,15x15x12cm,4.4,2023-10-22
+120,Reusable Shopping Bags,Home & Kitchen,EcoChoice,14.99,524,EcoGoods Ltd,0.2,40x35x10cm,4.3,2023-07-05
+121,Wireless Keyboard,Electronics,TechPro,69.99,145,TechSupply Co,0.6,44x13x2cm,4.5,2024-02-01
+122,Memory Foam Pillow,Home & Bedroom,SleepWell,39.99,198,HomeComfort,1.1,60x40x12cm,4.6,2023-08-28
+123,Sunglasses Polarized,Fashion,StyleVision,79.99,167,FashionHub,0.03,15x6x5cm,4.5,2023-06-20
+124,Vitamin C Supplement,Health & Wellness,NutriPro,24.99,389,HealthSupply,0.15,12x6x6cm,4.4,2024-01-08
+125,Ceramic Plant Pot Set,Home & Garden,GreenThumb,34.99,213,GardenSupply,2.5,Various sizes,4.7,2023-09-10
+126,Travel Toiletry Bag,Bags & Luggage,TravelEase,29.99,178,BagWorld,0.3,25x15x10cm,4.5,2023-11-15
+127,Smoothie Blender,Home & Kitchen,BrewMaster,69.99,134,ApplianceHub,2.2,35x20x40cm,4.6,2024-02-20
+128,Ankle Weights 2kg,Sports & Fitness,FlexFit,29.99,245,SportGear Inc,2.0,30x12x8cm,4.4,2023-10-12
+129,Scented Candle Set,Home & Décor,AromaPure,24.99,312,HomeComfort,0.8,8x8x10cm each,4.5,2023-12-01
+130,USB-C Cable 2m,Electronics,TechPro,12.99,567,TechSupply Co,0.05,200cm length,4.3,2023-07-30
