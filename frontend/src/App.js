@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import './App.css';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import "./App.css";
 
 function App() {
   const [file, setFile] = useState(null);
@@ -10,7 +10,7 @@ function App() {
   const [dragActive, setDragActive] = useState(false);
   const [kafkaHealth, setKafkaHealth] = useState(null);
 
-  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 
   useEffect(() => {
     checkHealth();
@@ -21,8 +21,8 @@ function App() {
       const response = await axios.get(`${API_URL}/health`);
       setKafkaHealth(response.data);
     } catch (err) {
-      console.error('Health check failed:', err);
-      setKafkaHealth({ status: 'unhealthy', error: err.message });
+      console.error("Health check failed:", err);
+      setKafkaHealth({ status: "unhealthy", error: err.message });
     }
   };
 
@@ -40,14 +40,14 @@ function App() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.name.endsWith('.csv')) {
+      if (droppedFile.name.endsWith(".csv")) {
         setFile(droppedFile);
         setError(null);
       } else {
-        setError('Please upload a CSV file');
+        setError("Please upload a CSV file");
       }
     }
   };
@@ -55,11 +55,11 @@ function App() {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      if (selectedFile.name.endsWith('.csv')) {
+      if (selectedFile.name.endsWith(".csv")) {
         setFile(selectedFile);
         setError(null);
       } else {
-        setError('Please upload a CSV file');
+        setError("Please upload a CSV file");
         setFile(null);
       }
     }
@@ -67,7 +67,7 @@ function App() {
 
   const handleUpload = async () => {
     if (!file) {
-      setError('Please select a file first');
+      setError("Please select a file first");
       return;
     }
 
@@ -76,24 +76,23 @@ function App() {
     setUploadResult(null);
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append("file", file);
 
     try {
       const response = await axios.post(`${API_URL}/upload-csv`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         },
       });
 
       setUploadResult(response.data);
       setFile(null);
-      
+
       // Reset file input
-      const fileInput = document.getElementById('file-input');
-      if (fileInput) fileInput.value = '';
-      
+      const fileInput = document.getElementById("file-input");
+      if (fileInput) fileInput.value = "";
     } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Upload failed');
+      setError(err.response?.data?.detail || err.message || "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -103,8 +102,8 @@ function App() {
     setFile(null);
     setUploadResult(null);
     setError(null);
-    const fileInput = document.getElementById('file-input');
-    if (fileInput) fileInput.value = '';
+    const fileInput = document.getElementById("file-input");
+    if (fileInput) fileInput.value = "";
   };
 
   return (
@@ -116,14 +115,24 @@ function App() {
             <p>Upload CSV files to Apache Kafka</p>
           </div>
           <div className="status-badge">
-            <div className={`status-indicator ${kafkaHealth?.status === 'healthy' ? 'healthy' : 'unhealthy'}`}></div>
-            <span>{kafkaHealth?.status === 'healthy' ? 'Kafka Connected' : 'Kafka Offline'}</span>
+            <div
+              className={`status-indicator ${
+                kafkaHealth?.status === "healthy" ? "healthy" : "unhealthy"
+              }`}
+            ></div>
+            <span>
+              {kafkaHealth?.status === "healthy"
+                ? "Kafka Connected"
+                : "Kafka Offline"}
+            </span>
           </div>
         </header>
 
         <div className="upload-section">
-          <div 
-            className={`drop-zone ${dragActive ? 'drag-active' : ''} ${file ? 'has-file' : ''}`}
+          <div
+            className={`drop-zone ${dragActive ? "drag-active" : ""} ${
+              file ? "has-file" : ""
+            }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -142,7 +151,7 @@ function App() {
                   type="file"
                   accept=".csv"
                   onChange={handleFileChange}
-                  style={{ display: 'none' }}
+                  style={{ display: "none" }}
                 />
                 <p className="file-hint">Supported format: CSV</p>
               </>
@@ -153,7 +162,11 @@ function App() {
                   <h4>{file.name}</h4>
                   <p>{(file.size / 1024).toFixed(2)} KB</p>
                 </div>
-                <button onClick={clearFile} className="btn-remove" title="Remove file">
+                <button
+                  onClick={clearFile}
+                  className="btn-remove"
+                  title="Remove file"
+                >
                   ✕
                 </button>
               </div>
@@ -205,19 +218,24 @@ function App() {
                 </div>
               </div>
 
-              {uploadResult.sample_data && uploadResult.sample_data.length > 0 && (
-                <div className="sample-data">
-                  <h4>Sample Data (First {uploadResult.sample_data.length} rows)</h4>
-                  <div className="data-preview">
-                    {uploadResult.sample_data.map((item, index) => (
-                      <div key={index} className="data-row">
-                        <span className="row-number">Row {item.row_number}:</span>
-                        <code>{JSON.stringify(item.data, null, 2)}</code>
-                      </div>
-                    ))}
+              {uploadResult.sample_data &&
+                uploadResult.sample_data.length > 0 && (
+                  <div className="sample-data">
+                    <h4>
+                      Sample Data (First {uploadResult.sample_data.length} rows)
+                    </h4>
+                    <div className="data-preview">
+                      {uploadResult.sample_data.map((item, index) => (
+                        <div key={index} className="data-row">
+                          <span className="row-number">
+                            Row {item.row_number}:
+                          </span>
+                          <code>{JSON.stringify(item.data, null, 2)}</code>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           </div>
         )}
@@ -246,9 +264,27 @@ function App() {
         <footer className="footer">
           <p>Kafka Learning Project • FastAPI + React + Kafka</p>
           <div className="links">
-            <a href={`${API_URL}/docs`} target="_blank" rel="noopener noreferrer">API Docs</a>
-            <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer">Kafka UI</a>
-            <a href="http://localhost:8001/docs" target="_blank" rel="noopener noreferrer">Consumer API</a>
+            <a
+              href={`${API_URL}/docs`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              API Docs
+            </a>
+            <a
+              href="http://localhost:8080"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Kafka UI
+            </a>
+            <a
+              href="http://localhost:8001/docs"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Consumer API
+            </a>
           </div>
         </footer>
       </div>
