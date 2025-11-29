@@ -80,6 +80,23 @@ services:
       - kafka-network
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kafka-frontend
+    depends_on:
+      - producer-api
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
 networks:
   kafka-network:
     driver: bridge

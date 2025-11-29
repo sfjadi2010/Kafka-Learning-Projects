@@ -9,6 +9,7 @@ This project sets up Apache Kafka with Zookeeper, Kafka UI, and two FastAPI serv
 - **Kafka UI**: Web-based UI for managing Kafka (Port 8080)
 - **Producer API**: FastAPI service to upload CSV files to Kafka (Port 8000)
 - **Consumer API**: FastAPI service to consume from Kafka and store in SQLite (Port 8001)
+- **Frontend**: React UI for easy CSV upload (Port 3000)
 
 ## Getting Started
 
@@ -25,6 +26,7 @@ docker compose up -d --build
 ### Accessing the Services
 
 Once running, access:
+- **React Frontend**: http://localhost:3000 (Main UI for uploading CSV)
 - **Kafka UI**: http://localhost:8080
 - **Producer API**: http://localhost:8000/docs (Swagger UI)
 - **Consumer API**: http://localhost:8001/docs (Swagger UI)
