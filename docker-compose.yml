@@ -100,6 +100,26 @@ services:
     stdin_open: true
     tty: true
 
+  consumer-frontend:
+    build:
+      context: ./consumer-frontend
+      dockerfile: Dockerfile
+    container_name: kafka-consumer-frontend
+    depends_on:
+      - consumer-api
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./consumer-frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8001
+    networks:
+      - kafka-network
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+
 networks:
   kafka-network:
     driver: bridge
