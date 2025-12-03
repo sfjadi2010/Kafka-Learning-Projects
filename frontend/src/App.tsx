@@ -118,7 +118,7 @@ function App() {
       <div className="container">
         <header className="header">
           <div className="header-content">
-            <h1>📊 Kafka CSV Producer</h1>
+            <h1>📊 Kafka CSV Uploader</h1>
             <p>Upload CSV files to Apache Kafka</p>
           </div>
           <div className="status-badge">
