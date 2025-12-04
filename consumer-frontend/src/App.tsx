@@ -18,6 +18,9 @@ function App() {
   const [totalRecords, setTotalRecords] = useState(0);
   const [consumerRunning, setConsumerRunning] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRecord, setSelectedRecord] = useState<Record | null>(null);
+  const [editedData, setEditedData] = useState<any>({});
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     checkHealth();
@@ -215,6 +218,44 @@ function App() {
     );
   };
 
+  const openModal = (record: Record) => {
+    setSelectedRecord(record);
+    setEditedData({ ...record.data });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedRecord(null);
+    setEditedData({});
+  };
+
+  const handleFieldChange = (field: string, value: string) => {
+    setEditedData({ ...editedData, [field]: value });
+  };
+
+  const saveRecord = async () => {
+    if (!selectedRecord || !activeTab) return;
+
+    try {
+      // TODO: Implement API endpoint to update record
+      // For now, just update locally and close modal
+      console.log("Saving record:", editedData);
+      
+      // Update the record in the local state
+      const updatedRecords = records.map((rec) =>
+        rec.id === selectedRecord.id ? { ...rec, data: editedData } : rec
+      );
+      setRecords(updatedRecords);
+      
+      closeModal();
+      alert("Record updated successfully!");
+    } catch (err) {
+      console.error("Failed to save record:", err);
+      alert("Failed to save record");
+    }
+  };
+
   return (
     <div className="app">
       <header className="header">
@@ -370,6 +411,8 @@ function App() {
                     <tr
                       key={idx}
                       className={isRowMatch(record) ? "highlight" : ""}
+                      onClick={() => openModal(record)}
+                      style={{ cursor: "pointer" }}
                     >
                       {getColumns().map((col) => (
                         <td key={col}>{String(record.data[col] || "")}</td>
@@ -416,6 +459,43 @@ function App() {
           </>
         )}
       </div>
+
+      {/* Modal Popup */}
+      {isModalOpen && selectedRecord && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{activeTab}</h2>
+              <button className="modal-close" onClick={closeModal}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="modal-fields">
+                {Object.keys(editedData).map((field) => (
+                  <div key={field} className="modal-field">
+                    <label className="modal-label">{field}:</label>
+                    <input
+                      type="text"
+                      className="modal-input"
+                      value={editedData[field] || ""}
+                      onChange={(e) => handleFieldChange(field, e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={closeModal}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={saveRecord}>
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
