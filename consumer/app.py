@@ -214,6 +214,12 @@ async def get_records(limit: int = 100, offset: int = 0):
     """Get stored records from SQLite"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
+        
+        # Get total count
+        cursor.execute('SELECT COUNT(*) as total FROM csv_records')
+        total_count = cursor.fetchone()['total']
+        
+        # Get paginated records
         cursor.execute('''
             SELECT id, row_number, filename, data, created_at
             FROM csv_records
@@ -234,7 +240,7 @@ async def get_records(limit: int = 100, offset: int = 0):
             })
     
     return {
-        "total": len(records),
+        "total": total_count,
         "limit": limit,
         "offset": offset,
         "records": records
@@ -255,28 +261,30 @@ async def get_stats():
     """Get consumer statistics"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT total_messages, last_consumed_at, status
-            FROM consumer_stats
-            WHERE id = 1
-        ''')
         
-        row = cursor.fetchone()
+        # Get actual record count from csv_records table
+        cursor.execute('SELECT COUNT(*) as total FROM csv_records')
+        total_count = cursor.fetchone()['total']
         
-        if row:
-            stats = {
-                "total_messages_consumed": row['total_messages'],
-                "last_consumed_at": row['last_consumed_at'],
-                "status": row['status'],
-                "current_consumer_active": is_consuming
-            }
+        # Get last record timestamp
+        cursor.execute('SELECT created_at FROM csv_records ORDER BY created_at DESC LIMIT 1')
+        last_record = cursor.fetchone()
+        last_consumed_at = last_record['created_at'] if last_record else None
+        
+        # Determine status based on consumer state and record count
+        if is_consuming:
+            status = "active"
+        elif total_count > 0:
+            status = "idle"
         else:
-            stats = {
-                "total_messages_consumed": 0,
-                "last_consumed_at": None,
-                "status": "not_started",
-                "current_consumer_active": is_consuming
-            }
+            status = "not_started"
+        
+        stats = {
+            "total_messages_consumed": total_count,
+            "last_consumed_at": last_consumed_at,
+            "status": status,
+            "current_consumer_active": is_consuming
+        }
     
     return stats
 

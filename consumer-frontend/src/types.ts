@@ -1,12 +1,18 @@
 export interface Record {
     id: number;
-    [key: string]: string | number;
+    row_number: number;
+    filename: string;
+    data: {
+        [key: string]: string | number;
+    };
+    created_at: string;
 }
 
 export interface Stats {
-    total_records: number;
-    consumer_status: string;
-    last_updated: string;
+    total_messages_consumed: number;
+    last_consumed_at: string;
+    status: string;
+    current_consumer_active: boolean;
 }
 
 export interface ConsumerHealth {

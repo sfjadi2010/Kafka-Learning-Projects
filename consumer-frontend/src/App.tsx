@@ -20,6 +20,9 @@ function App() {
     checkHealth();
     fetchStats();
     fetchRecords();
+  }, [offset, limit]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       fetchStats();
       if (consumerRunning) {
@@ -27,7 +30,7 @@ function App() {
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [offset, limit, consumerRunning]);
+  }, [consumerRunning]);
 
   const checkHealth = async () => {
     try {
@@ -42,7 +45,7 @@ function App() {
     try {
       const response = await axios.get(`${API_URL}/stats`);
       setStats(response.data);
-      setConsumerRunning(response.data.consumer_status === "running");
+      setConsumerRunning(response.data.current_consumer_active);
     } catch (err) {
       console.error("Failed to fetch stats:", err);
     }
@@ -52,13 +55,11 @@ function App() {
     setLoading(true);
     setError("");
     try {
-      const countResponse = await axios.get(`${API_URL}/records/count`);
-      setTotalRecords(countResponse.data.count);
-
       const response = await axios.get(`${API_URL}/records`, {
         params: { limit, offset },
       });
-      setRecords(response.data);
+      setRecords(response.data.records || []);
+      setTotalRecords(response.data.total || 0);
     } catch (err) {
       setError("Failed to fetch records");
       console.error(err);
@@ -131,8 +132,8 @@ function App() {
   };
 
   const getColumns = () => {
-    if (records.length === 0) return [];
-    return Object.keys(records[0]);
+    if (records.length === 0 || !records[0] || !records[0].data) return [];
+    return Object.keys(records[0].data);
   };
 
   return (
@@ -181,18 +182,20 @@ function App() {
           <div className="stats-panel">
             <div className="stat-item">
               <span className="stat-label">Total Records:</span>
-              <span className="stat-value">{stats.total_records}</span>
+              <span className="stat-value">{totalRecords}</span>
             </div>
             <div className="stat-item">
               <span className="stat-label">Consumer Status:</span>
-              <span className={`stat-value status-${stats.consumer_status}`}>
-                {stats.consumer_status}
+              <span className={`stat-value status-${stats.status}`}>
+                {stats.status}
               </span>
             </div>
             <div className="stat-item">
               <span className="stat-label">Last Updated:</span>
               <span className="stat-value">
-                {new Date(stats.last_updated).toLocaleString()}
+                {stats.last_consumed_at
+                  ? new Date(stats.last_consumed_at).toLocaleString()
+                  : "N/A"}
               </span>
             </div>
           </div>
@@ -220,13 +223,14 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {records.map((record, idx) => (
-                  <tr key={idx}>
-                    {getColumns().map((col) => (
-                      <td key={col}>{String(record[col])}</td>
-                    ))}
-                  </tr>
-                ))}
+                {records &&
+                  records.map((record, idx) => (
+                    <tr key={idx}>
+                      {getColumns().map((col) => (
+                        <td key={col}>{String(record.data[col] || "")}</td>
+                      ))}
+                    </tr>
+                  ))}
               </tbody>
             </table>
 
@@ -256,6 +260,7 @@ function App() {
                   setOffset(0);
                 }}
                 className="limit-select"
+                aria-label="Records per page"
               >
                 <option value="10">10 per page</option>
                 <option value="25">25 per page</option>
