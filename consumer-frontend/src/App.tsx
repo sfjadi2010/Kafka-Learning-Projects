@@ -238,24 +238,24 @@ function App() {
     if (!selectedRecord || !activeTab) return;
 
     try {
-      // TODO: Implement API endpoint to update record
-      // For now, just update locally and close modal
-      console.log("Saving record:", editedData);
-      
+      // Call API to update record in database
+      await axios.put(
+        `${API_URL}/topics/${activeTab}/records/${selectedRecord.id}`,
+        editedData
+      );
+
       // Update the record in the local state
       const updatedRecords = records.map((rec) =>
-        rec.id === selectedRecord.id ? { ...rec, data: editedData } : rec
+        rec.id === selectedRecord.id ? { ...rec, data: { ...editedData } } : rec
       );
       setRecords(updatedRecords);
-      
+
       closeModal();
-      alert("Record updated successfully!");
     } catch (err) {
       console.error("Failed to save record:", err);
-      alert("Failed to save record");
+      setError("Failed to save record. Please try again.");
     }
   };
-
   return (
     <div className="app">
       <header className="header">

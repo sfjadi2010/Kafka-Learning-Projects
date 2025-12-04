@@ -678,3 +678,42 @@ async def get_topic_records(topic: str, limit: int = 100, offset: int = 0):
         "limit": limit,
         "offset": offset
     }
+
+@app.put("/topics/{topic}/records/{record_id}")
+async def update_record(topic: str, record_id: int, updated_data: dict):
+    """Update a specific record in the database"""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get the table name for this topic
+        cursor.execute('SELECT table_name FROM topics WHERE topic_name = ?', (topic,))
+        result = cursor.fetchone()
+        
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Topic '{topic}' not found")
+        
+        table_name = result['table_name']
+        
+        # Update the record
+        try:
+            cursor.execute(f'''
+                UPDATE {table_name}
+                SET data = ?
+                WHERE id = ?
+            ''', (json.dumps(updated_data), record_id))
+            
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail=f"Record with id {record_id} not found")
+            
+            conn.commit()
+            
+            return {
+                "message": "Record updated successfully",
+                "topic": topic,
+                "record_id": record_id,
+                "updated_data": updated_data
+            }
+        except Exception as e:
+            logger.error(f"Error updating record {record_id} in topic {topic}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to update record: {str(e)}")
+
