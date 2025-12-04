@@ -194,7 +194,7 @@ function App() {
               <span className="stat-label">Last Updated:</span>
               <span className="stat-value">
                 {stats.last_consumed_at
-                  ? new Date(stats.last_consumed_at + 'Z').toLocaleString()
+                  ? new Date(stats.last_consumed_at + "Z").toLocaleString()
                   : "N/A"}
               </span>
             </div>
