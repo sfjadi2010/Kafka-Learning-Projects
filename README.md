@@ -1,15 +1,25 @@
-# Kafka Learning Project
+# Kafka Learning Project - Multi-Topic Architecture
 
-This project sets up Apache Kafka with Zookeeper, Kafka UI, FastAPI backend services, and a modern React TypeScript frontend for CSV data processing using Docker Compose.
+This project demonstrates a complete Apache Kafka pipeline with dynamic topic creation, multi-topic data processing, and a modern tabbed UI interface. It uses Docker Compose to orchestrate Kafka, Zookeeper, FastAPI backends, and a React TypeScript frontend for CSV data streaming and visualization.
+
+## Key Features
+
+- **Dynamic Topic Creation**: Each uploaded CSV file automatically creates its own Kafka topic
+- **Multi-Topic Architecture**: Separate database tables for each topic with independent data streams
+- **Tabbed UI**: Modern React interface showing each topic in separate tabs with real-time updates
+- **Real-time Processing**: Live consumer processing with auto-refresh capabilities
+- **Type-Safe Development**: Full TypeScript support across the frontend
+- **Drag-and-Drop Upload**: Intuitive file upload with visual feedback
 
 ## Components
 
 - **Zookeeper**: Coordination service for Kafka (Port 2181)
 - **Kafka Broker**: Message broker (Ports 9092 for external, 9093 for internal)
 - **Kafka UI**: Web-based UI for managing Kafka (Port 8080)
-- **Producer API**: FastAPI service to upload CSV files to Kafka (Port 8000)
-- **Consumer API**: FastAPI service to consume from Kafka and store in SQLite (Port 8001)
-- **Frontend**: Vite + React + TypeScript UI for CSV upload with drag-and-drop support (Port 3000)
+- **Producer API**: FastAPI service to upload CSV files and create topics (Port 8000)
+- **Consumer API**: FastAPI service to consume from all topics and store in topic-specific tables (Port 8001)
+- **Frontend**: Vite + React + TypeScript UI for CSV upload (Port 3000)
+- **Consumer Data Viewer**: React UI with tabbed interface for viewing topic data (Port 5174)
 
 ## Getting Started
 
@@ -28,7 +38,8 @@ docker compose up -d --build
 
 Once running, access:
 
-- **React TypeScript Frontend**: <http://localhost:3000> - Modern UI with drag-and-drop CSV upload
+- **React TypeScript Frontend (Upload)**: <http://localhost:3000> - Modern UI with drag-and-drop CSV upload
+- **Consumer Data Viewer (Tabbed UI)**: <http://localhost:5174> - View data by topic in separate tabs
 - **Kafka UI**: <http://localhost:8080> - Kafka cluster management
 - **Producer API**: <http://localhost:8000/docs> - Swagger UI for CSV upload API
 - **Consumer API**: <http://localhost:8001/docs> - Swagger UI for data retrieval
@@ -55,72 +66,105 @@ docker compose down -v
 
 ### 1. Upload CSV to Kafka (Producer)
 
-Upload a CSV file via the Producer API:
+Upload a CSV file to automatically create a topic and send data:
 
 ```bash
-curl -X POST "http://localhost:8000/upload-csv" -F "file=@sample_data.csv"
+curl -X POST "http://localhost:8000/upload-csv" -F "file=@customers.csv"
 ```
 
-Or use the Swagger UI at <http://localhost:8000/docs>
+**Response includes:**
+- Topic name (based on filename)
+- Whether topic was newly created
+- Number of rows sent
+- Sample data
+
+**Topic Naming Convention:**
+- `customers.csv` → `customers` topic → `topic_customers` table
+- `products.csv` → `products` topic → `topic_products` table
 
 ### 2. Start Kafka Consumer
 
-Start the consumer to read from Kafka and store in SQLite:
+Start the consumer to read from all Kafka topics and store in topic-specific tables:
 
 ```bash
 curl -X POST "http://localhost:8001/start-consumer"
 ```
 
-### 3. Get Stored Records
+The consumer subscribes to all topics using pattern matching and automatically:
+- Creates a database table for each topic
+- Registers topics in metadata table
+- Stores data in topic-specific tables
 
-Retrieve records from SQLite database:
+### 3. List All Topics
+
+Get all registered topics with metadata:
 
 ```bash
-curl "http://localhost:8001/records?limit=10"
+curl "http://localhost:8001/topics"
 ```
 
-### 4. Get Consumer Statistics
+**Returns:**
+- Topic name
+- Table name
+- Record count
+- Created timestamp
+
+### 4. Get Records for Specific Topic
+
+Retrieve paginated records from a specific topic:
+
+```bash
+curl "http://localhost:8001/topics/customers/records?limit=10&offset=0"
+```
+
+### 5. Get Consumer Statistics
 
 ```bash
 curl "http://localhost:8001/stats"
-```
-
-### 5. Run the Test Script
-
-A Python test script is included to test the complete flow:
-
-```bash
-pip install requests
-python test_api.py
 ```
 
 ## API Endpoints
 
 ### Producer API (Port 8000)
 
-- `POST /upload-csv` - Upload CSV file to Kafka
+- `POST /upload-csv` - Upload CSV file to Kafka (creates topic automatically)
 - `GET /health` - Health check
-- `GET /kafka-info` - Kafka connection info
+- `GET /kafka-info` - Kafka connection info and topic list
 
 ### Consumer API (Port 8001)
 
-- `POST /start-consumer` - Start consuming from Kafka
+- `POST /start-consumer` - Start consuming from all Kafka topics
 - `POST /stop-consumer` - Stop the consumer
-- `GET /records` - Get stored records (supports limit & offset)
-- `GET /records/count` - Get total record count
+- `GET /topics` - Get list of all topics with metadata
+- `GET /topics/{topic}/records` - Get records for specific topic (supports limit & offset)
+- `GET /records` - Get all stored records (deprecated - use topic-specific endpoint)
 - `GET /stats` - Get consumer statistics
 - `DELETE /records` - Delete all records
 
 ## Frontend Features
 
+### CSV Upload Frontend (Port 3000)
+
 The React TypeScript frontend provides a modern, user-friendly interface:
 
 - **Drag-and-drop CSV upload** - Simply drag files or click to browse
 - **Real-time health monitoring** - Live Kafka connection status indicator
+- **Upload feedback** - Clear success/error messages with detailed information
 - **Type-safe development** - Built with TypeScript for better code quality
 - **Fast development** - Powered by Vite with Hot Module Replacement (HMR)
-- **Responsive design** - Works on desktop and mobile devices
-- **Upload feedback** - Clear success/error messages with detailed information
+
+### Consumer Data Viewer (Port 5174)
+
+Modern tabbed interface for viewing data by topic:
+
+- **Topic Tabs** - Each Kafka topic displayed in separate tab
+- **Record Counts** - Badge showing number of records per topic
+- **Real-time Updates** - Auto-refresh every 5 seconds when consumer is active
+- **Pagination** - Navigate through large datasets with customizable page size
+- **Dynamic Columns** - Table columns automatically match CSV structure
+- **Consumer Controls** - Start/stop consumer directly from UI
+- **Timezone Handling** - Automatic UTC to local time conversion
+- **Responsive Design** - Works on desktop and mobile devices
 
 ### Sample Data Files
 
