@@ -63,7 +63,10 @@ function App() {
   const fetchTopics = async () => {
     try {
       const response = await axios.get(`${API_URL}/topics`);
+      console.log("Raw API response:", response.data);
       const fetchedTopics = response.data.topics || [];
+      console.log("Fetched topics:", fetchedTopics);
+      console.log("Topics count:", fetchedTopics.length);
       setTopics(fetchedTopics);
 
       // Set active tab to first topic if not already set
