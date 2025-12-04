@@ -153,11 +153,20 @@
   font-weight: 600;
 }
 
+.tabs-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
 .tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 20px;
   flex-wrap: wrap;
+  flex: 1;
 }
 
 .tab-wrapper {
@@ -239,6 +248,54 @@
   opacity: 1;
 }
 
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 300px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 14px 40px 14px 15px;
+  border: 2px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: white;
+  font-weight: 500;
+  height: 48px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.search-input::placeholder {
+  color: #9ca3af;
+}
+
+.search-clear {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.search-clear:hover {
+  color: #ef4444;
+}
+
 .tab.active .badge {
   background: rgba(102, 126, 234, 0.15);
   color: #667eea;
@@ -299,6 +356,20 @@
 
 .data-table tbody tr:hover {
   background: #f9fafb;
+}
+
+.data-table tbody tr.highlight {
+  background-color: #fce7f3;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    background-color: #fce7f3;
+  }
+  50% {
+    background-color: #fbcfe8;
+  }
 }
 
 .data-table td {

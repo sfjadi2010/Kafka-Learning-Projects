@@ -17,6 +17,7 @@ function App() {
   const [offset, setOffset] = useState(0);
   const [totalRecords, setTotalRecords] = useState(0);
   const [consumerRunning, setConsumerRunning] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     checkHealth();
@@ -204,6 +205,14 @@ function App() {
     return Object.keys(records[0].data);
   };
 
+  const isRowMatch = (record: Record) => {
+    if (!searchTerm.trim()) return false;
+    const searchLower = searchTerm.toLowerCase();
+    return getColumns().some((col) =>
+      String(record.data[col] || "").toLowerCase().includes(searchLower)
+    );
+  };
+
   return (
     <div className="app">
       <header className="header">
@@ -276,8 +285,9 @@ function App() {
       {error && <div className="error-message">⚠️ {error}</div>}
 
       {topics.length > 0 && (
-        <div className="tabs">
-          {topics.map((topic) => (
+        <div className="tabs-container">
+          <div className="tabs">
+            {topics.map((topic) => (
             <div
               key={topic.topic_name}
               className={`tab-wrapper ${
@@ -308,6 +318,25 @@ function App() {
               </button>
             </div>
           ))}
+          </div>
+          <div className="search-box">
+            <input
+              type="text"
+              placeholder="🔍 Search in current tab..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="search-input"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="search-clear"
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -336,7 +365,7 @@ function App() {
               <tbody>
                 {records &&
                   records.map((record, idx) => (
-                    <tr key={idx}>
+                    <tr key={idx} className={isRowMatch(record) ? "highlight" : ""}>
                       {getColumns().map((col) => (
                         <td key={col}>{String(record.data[col] || "")}</td>
                       ))}
