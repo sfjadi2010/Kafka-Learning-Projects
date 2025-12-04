@@ -19,3 +19,10 @@ export interface ConsumerHealth {
     status: string;
     database: string;
 }
+
+export interface Topic {
+    topic_name: string;
+    table_name: string;
+    record_count: number;
+    created_at: string;
+}

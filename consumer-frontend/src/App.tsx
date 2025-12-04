@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Record, Stats, ConsumerHealth } from "./types";
+import { Record, Topic, Stats, ConsumerHealth } from "./types";
 import "./App.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8001";
 
 function App() {
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [records, setRecords] = useState<Record[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [health, setHealth] = useState<ConsumerHealth | null>(null);
@@ -19,18 +21,25 @@ function App() {
   useEffect(() => {
     checkHealth();
     fetchStats();
-    fetchRecords();
-  }, [offset, limit]);
+    fetchTopics();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab) {
+      fetchTopicRecords(activeTab);
+    }
+  }, [activeTab, offset, limit]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       fetchStats();
-      if (consumerRunning) {
-        fetchRecords();
+      fetchTopics();
+      if (consumerRunning && activeTab) {
+        fetchTopicRecords(activeTab);
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [consumerRunning]);
+  }, [consumerRunning, activeTab, offset, limit]);
 
   const checkHealth = async () => {
     try {
@@ -51,11 +60,26 @@ function App() {
     }
   };
 
-  const fetchRecords = async () => {
+  const fetchTopics = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/topics`);
+      const fetchedTopics = response.data.topics || [];
+      setTopics(fetchedTopics);
+
+      // Set active tab to first topic if not already set
+      if (fetchedTopics.length > 0 && !activeTab) {
+        setActiveTab(fetchedTopics[0].topic_name);
+      }
+    } catch (err) {
+      console.error("Failed to fetch topics:", err);
+    }
+  };
+
+  const fetchTopicRecords = async (topic: string) => {
     setLoading(true);
     setError("");
     try {
-      const response = await axios.get(`${API_URL}/records`, {
+      const response = await axios.get(`${API_URL}/topics/${topic}/records`, {
         params: { limit, offset },
       });
       setRecords(response.data.records || []);
@@ -173,7 +197,10 @@ function App() {
           <button onClick={deleteAllRecords} className="btn btn-danger">
             🗑️ Delete All
           </button>
-          <button onClick={fetchRecords} className="btn btn-secondary">
+          <button
+            onClick={() => activeTab && fetchTopicRecords(activeTab)}
+            className="btn btn-secondary"
+          >
             🔄 Refresh
           </button>
         </div>
@@ -204,13 +231,37 @@ function App() {
 
       {error && <div className="error-message">⚠️ {error}</div>}
 
+      {topics.length > 0 && (
+        <div className="tabs">
+          {topics.map((topic) => (
+            <button
+              key={topic.topic_name}
+              className={`tab ${
+                activeTab === topic.topic_name ? "active" : ""
+              }`}
+              onClick={() => {
+                setActiveTab(topic.topic_name);
+                setOffset(0);
+              }}
+            >
+              {topic.topic_name}
+              <span className="badge">{topic.record_count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="table-container">
         {loading ? (
           <div className="loading">Loading...</div>
+        ) : topics.length === 0 ? (
+          <div className="no-data">
+            <p>No topics found</p>
+            <p>Upload a CSV file to create topics and start processing</p>
+          </div>
         ) : records.length === 0 ? (
           <div className="no-data">
-            <p>No records found</p>
-            <p>Start the consumer to begin processing Kafka messages</p>
+            <p>No records found in {activeTab}</p>
           </div>
         ) : (
           <>

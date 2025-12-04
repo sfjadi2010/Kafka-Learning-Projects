@@ -5,6 +5,7 @@ import sqlite3
 import json
 import logging
 import threading
+import re
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -44,12 +45,19 @@ def get_db_connection():
     finally:
         conn.close()
 
-def init_database():
-    """Initialize SQLite database and create tables"""
+def get_table_name_from_topic(topic: str) -> str:
+    """Generate a valid SQLite table name from topic name"""
+    # Replace special characters with underscores and prefix with 'topic_'
+    table_name = f"topic_{topic.replace('-', '_').replace('.', '_')}"
+    return table_name
+
+def create_topic_table(topic: str):
+    """Create a table for a specific topic if it doesn't exist"""
+    table_name = get_table_name_from_topic(topic)
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS csv_records (
+        cursor.execute(f'''
+            CREATE TABLE IF NOT EXISTS {table_name} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 row_number INTEGER,
                 filename TEXT,
@@ -57,24 +65,32 @@ def init_database():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        conn.commit()
+        logger.info(f"Created/verified table: {table_name}")
+
+def init_database():
+    """Initialize SQLite database and create base tables"""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        # Create a topics metadata table
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS consumer_stats (
+            CREATE TABLE IF NOT EXISTS topics (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                total_messages INTEGER DEFAULT 0,
-                last_consumed_at TIMESTAMP,
-                status TEXT
+                topic_name TEXT UNIQUE,
+                table_name TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         conn.commit()
         logger.info("Database initialized successfully")
 
 def consume_kafka_messages():
-    """Background task to consume Kafka messages and store in SQLite"""
+    """Background task to consume Kafka messages from all topics and store in SQLite"""
     global is_consuming
     
     try:
+        # Subscribe to all topics using pattern (except internal Kafka topics)
         consumer = KafkaConsumer(
-            KAFKA_TOPIC,
             bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
             group_id=KAFKA_GROUP_ID,
             value_deserializer=lambda m: json.loads(m.decode('utf-8')),
@@ -83,7 +99,10 @@ def consume_kafka_messages():
             api_version=(2, 0, 2)
         )
         
-        logger.info(f"Kafka consumer started for topic: {KAFKA_TOPIC}")
+        # Subscribe to all topics except internal ones
+        consumer.subscribe(pattern='^(?!__).*')
+        
+        logger.info(f"Kafka consumer started, subscribing to all topics")
         is_consuming = True
         
         for message in consumer:
@@ -92,12 +111,25 @@ def consume_kafka_messages():
                 
             try:
                 data = message.value
+                topic = message.topic
                 
-                # Store in SQLite
+                # Create table for this topic if it doesn't exist
+                create_topic_table(topic)
+                table_name = get_table_name_from_topic(topic)
+                
+                # Store in topic-specific table
                 with get_db_connection() as conn:
                     cursor = conn.cursor()
+                    
+                    # Register topic if not already registered
                     cursor.execute('''
-                        INSERT INTO csv_records (row_number, filename, data)
+                        INSERT OR IGNORE INTO topics (topic_name, table_name)
+                        VALUES (?, ?)
+                    ''', (topic, table_name))
+                    
+                    # Insert data into topic-specific table
+                    cursor.execute(f'''
+                        INSERT INTO {table_name} (row_number, filename, data)
                         VALUES (?, ?, ?)
                     ''', (
                         data.get('row_number'),
@@ -105,23 +137,8 @@ def consume_kafka_messages():
                         json.dumps(data.get('data'))
                     ))
                     
-                    # Update stats
-                    cursor.execute('''
-                        UPDATE consumer_stats 
-                        SET total_messages = total_messages + 1,
-                            last_consumed_at = CURRENT_TIMESTAMP,
-                            status = 'active'
-                        WHERE id = 1
-                    ''')
-                    
-                    if cursor.rowcount == 0:
-                        cursor.execute('''
-                            INSERT INTO consumer_stats (total_messages, last_consumed_at, status)
-                            VALUES (1, CURRENT_TIMESTAMP, 'active')
-                        ''')
-                    
                     conn.commit()
-                    logger.info(f"Stored record from {data.get('filename')}, row {data.get('row_number')}")
+                    logger.info(f"Stored record from topic '{topic}', file {data.get('filename')}, row {data.get('row_number')}")
                     
             except Exception as e:
                 logger.error(f"Error processing message: {e}")
@@ -146,8 +163,10 @@ async def root():
         "endpoints": {
             "/start-consumer": "POST - Start Kafka consumer",
             "/stop-consumer": "POST - Stop Kafka consumer",
-            "/records": "GET - Get all stored records",
-            "/records/count": "GET - Get record count",
+            "/topics": "GET - Get all topics",
+            "/topics/{topic}/records": "GET - Get records for specific topic",
+            "/records": "GET - Get all stored records (deprecated)",
+            "/records/count": "GET - Get record count (deprecated)",
             "/stats": "GET - Get consumer statistics",
             "/health": "GET - Health check"
         }
@@ -298,3 +317,79 @@ async def delete_all_records():
         conn.commit()
     
     return {"status": "success", "message": "All records deleted"}
+
+@app.get("/topics")
+async def get_topics():
+    """Get all registered topics with their metadata"""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Get all topics from metadata table
+        cursor.execute('''
+            SELECT topic_name, table_name, created_at
+            FROM topics
+            ORDER BY created_at DESC
+        ''')
+        
+        topics_data = cursor.fetchall()
+        
+        # Get record count for each topic
+        topics = []
+        for topic in topics_data:
+            cursor.execute(f'SELECT COUNT(*) as count FROM {topic["table_name"]}')
+            count = cursor.fetchone()['count']
+            
+            topics.append({
+                "topic_name": topic["topic_name"],
+                "table_name": topic["table_name"],
+                "record_count": count,
+                "created_at": topic["created_at"]
+            })
+    
+    return {"topics": topics}
+
+@app.get("/topics/{topic}/records")
+async def get_topic_records(topic: str, limit: int = 100, offset: int = 0):
+    """Get records for a specific topic"""
+    table_name = get_table_name_from_topic(topic)
+    
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Verify topic exists
+        cursor.execute('SELECT topic_name FROM topics WHERE topic_name = ?', (topic,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail=f"Topic '{topic}' not found")
+        
+        # Get total count
+        cursor.execute(f'SELECT COUNT(*) as total FROM {table_name}')
+        total_count = cursor.fetchone()['total']
+        
+        # Get paginated records
+        cursor.execute(f'''
+            SELECT id, row_number, filename, data, created_at
+            FROM {table_name}
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+        ''', (limit, offset))
+        
+        rows = cursor.fetchall()
+        
+        records = []
+        for row in rows:
+            record = {
+                "id": row["id"],
+                "row_number": row["row_number"],
+                "filename": row["filename"],
+                "data": json.loads(row["data"]) if row["data"] else {},
+                "created_at": row["created_at"]
+            }
+            records.append(record)
+    
+    return {
+        "topic": topic,
+        "records": records,
+        "total": total_count,
+        "limit": limit,
+        "offset": offset
+    }
