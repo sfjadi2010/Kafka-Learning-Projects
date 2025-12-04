@@ -7,6 +7,8 @@ This project demonstrates a complete Apache Kafka pipeline with dynamic topic cr
 - **Dynamic Topic Creation**: Each uploaded CSV file automatically creates its own Kafka topic
 - **Multi-Topic Architecture**: Separate database tables for each topic with independent data streams
 - **Tabbed UI**: Modern React interface showing each topic in separate tabs with real-time updates
+- **Audit Trail**: Automatic archiving of deleted data with timestamps for compliance and recovery
+- **Individual Topic Management**: Delete specific topics with independent archival
 - **Real-time Processing**: Live consumer processing with auto-refresh capabilities
 - **Type-Safe Development**: Full TypeScript support across the frontend
 - **Drag-and-Drop Upload**: Intuitive file upload with visual feedback
@@ -137,9 +139,10 @@ curl "http://localhost:8001/stats"
 - `POST /stop-consumer` - Stop the consumer
 - `GET /topics` - Get list of all topics with metadata
 - `GET /topics/{topic}/records` - Get records for specific topic (supports limit & offset)
+- `DELETE /topics/{topic}` - Delete specific topic (archives data, drops table, deletes Kafka topic)
 - `GET /records` - Get all stored records (deprecated - use topic-specific endpoint)
 - `GET /stats` - Get consumer statistics
-- `DELETE /records` - Delete all records
+- `DELETE /records` - Delete all records (archives all data, drops all tables, deletes all Kafka topics)
 
 ## Frontend Features
 
@@ -157,8 +160,11 @@ The React TypeScript frontend provides a modern, user-friendly interface:
 
 Modern tabbed interface for viewing data by topic:
 
-- **Topic Tabs** - Each Kafka topic displayed in separate tab
+- **Topic Tabs** - Each Kafka topic displayed in separate tab with hover-based delete button
 - **Record Counts** - Badge showing number of records per topic
+- **Individual Topic Deletion** - Delete button (✕) on each tab for topic-specific cleanup
+- **Bulk Deletion** - Delete All button for removing all topics at once
+- **Audit Trail** - All deletions automatically archive data before removal
 - **Real-time Updates** - Auto-refresh every 5 seconds when consumer is active
 - **Pagination** - Navigate through large datasets with customizable page size
 - **Dynamic Columns** - Table columns automatically match CSV structure
@@ -194,7 +200,8 @@ The project includes ready-to-use sample CSV files:
 
 ```sql
 CREATE TABLE topics (
-    topic_name TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_name TEXT UNIQUE,
     table_name TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
@@ -212,6 +219,29 @@ CREATE TABLE topic_{name} (
 )
 ```
 
+**Audit Tables (Created on Deletion):**
+
+```sql
+-- Audit table for topics metadata
+CREATE TABLE audit_topics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_name TEXT,
+    table_name TEXT,
+    created_at TIMESTAMP,
+    archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+
+-- Audit table for each deleted topic
+CREATE TABLE audit_topic_{name} (
+    id INTEGER,
+    row_number INTEGER,
+    filename TEXT,
+    data TEXT,
+    created_at TIMESTAMP,
+    archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+```
+
 ## Data Flow
 
 1. **Upload**: User uploads CSV file via React frontend or directly to Producer API
@@ -223,6 +253,8 @@ CREATE TABLE topic_{name} (
 7. **Metadata**: Topic registered in `topics` table with record count
 8. **Display**: Frontend shows tabs for each topic with live data updates
 9. **Query**: Access data via topic-specific endpoints or directly in SQLite
+10. **Delete (Individual)**: User clicks ✕ on tab → Archives to `audit_topic_{name}` → Drops table → Deletes Kafka topic
+11. **Delete (All)**: User clicks Delete All → Stops consumer → Archives all to audit tables → Drops all tables → Deletes all Kafka topics
 
 ## Technology Stack
 
@@ -397,6 +429,10 @@ uvicorn app:app --reload --port 8001
 - **Metadata Tracking**: Maintains `topics` table for topic discovery
 - **Topic-Specific Storage**: Isolates data by topic in separate tables
 - **JSON Data Storage**: Stores CSV data as JSON for flexible querying
+- **Audit Trail System**: Automatically archives all deleted data with timestamps
+- **Safe Deletion**: Stops consumer before deletion to prevent data recreation
+- **Individual Topic Cleanup**: Delete specific topics without affecting others
+- **Bulk Operations**: Delete all topics with single operation
 
 ### Frontend Architecture
 
@@ -405,6 +441,97 @@ uvicorn app:app --reload --port 8001
 - **Pagination State**: Separate pagination for each topic
 - **Dynamic Columns**: Table adapts to CSV structure
 - **Gradient Tabs**: Active tab uses gradient matching app theme
+
+## Data Management & Audit Trail
+
+### Deletion Workflow
+
+When you delete data (either a single topic or all topics), the system follows a comprehensive workflow:
+
+1. **Consumer Stop**: Automatically stops the Kafka consumer to prevent message reprocessing
+2. **Data Archival**: Creates audit tables with `audit_` prefix and copies all existing data with `archived_at` timestamp
+3. **Table Cleanup**: Drops the original topic-specific tables from SQLite database
+4. **Metadata Update**: Removes entries from the `topics` table or archives to `audit_topics`
+5. **Kafka Cleanup**: Deletes topics from the Kafka broker using AdminClient
+6. **UI Update**: Clears tabs and refreshes the interface
+
+### Audit Tables
+
+All deleted data is preserved in audit tables for compliance and recovery:
+
+```sql
+-- Audit metadata table
+CREATE TABLE audit_topics (
+    id INTEGER PRIMARY KEY,
+    topic_name TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Audit data tables (one per topic)
+CREATE TABLE audit_topic_{name} (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_name TEXT,
+    timestamp TIMESTAMP,
+    data TEXT,  -- JSON data from CSV
+    archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Data Recovery
+
+To recover deleted data, query the audit tables directly:
+
+```python
+import sqlite3
+
+# Connect to database
+conn = sqlite3.connect('consumer/data/kafka_data.db')
+cursor = conn.cursor()
+
+# List all archived topics
+cursor.execute("SELECT topic_name, archived_at FROM audit_topics ORDER BY archived_at DESC")
+print(cursor.fetchall())
+
+# Recover data from specific topic
+cursor.execute("SELECT data, archived_at FROM audit_topic_customers WHERE archived_at > '2024-01-01'")
+for row in cursor.fetchall():
+    print(row)
+```
+
+### Delete Operations
+
+**Delete Single Topic:**
+
+```bash
+# Delete specific topic (archives data, drops table, removes from Kafka)
+curl -X DELETE http://localhost:8001/topics/customers
+
+# Response includes audit details
+{
+  "message": "Topic 'customers' deleted successfully",
+  "audited_tables": ["audit_topics", "audit_topic_customers"],
+  "deleted_kafka_topics": ["customers"],
+  "failed_kafka_topics": []
+}
+```
+
+**Delete All Topics:**
+
+```bash
+# Delete everything (archives all data, drops all tables, removes all topics)
+curl -X DELETE http://localhost:8001/records
+
+# Response shows complete cleanup
+{
+  "message": "All data deleted successfully",
+  "audited_tables": ["audit_topics", "audit_topic_customers", "audit_topic_products"],
+  "deleted_kafka_topics": ["customers", "products"],
+  "failed_kafka_topics": [],
+  "records_deleted": 150
+}
+```
 
 ## Use Cases
 
