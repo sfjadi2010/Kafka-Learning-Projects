@@ -170,17 +170,59 @@ Modern tabbed interface for viewing data by topic:
 
 The project includes ready-to-use sample CSV files:
 
-- `sample_customers.csv` - 30 customer records
-- `sample_products.csv` - 30 product records with categories
-- `sample_orders.csv` - 40 order records linking customers and products
+- `customers.csv` - 30 customer records with contact information
+- `products.csv` - 30 product records with categories and pricing
+- `orders.csv` - 40 order records linking customers and products
+- `data.csv` - Simple test data for quick testing
+
+## Multi-Topic Architecture
+
+### How It Works
+
+1. **Upload**: User uploads CSV file via frontend (e.g., `customers.csv`)
+2. **Topic Creation**: Producer creates Kafka topic `customers` if it doesn't exist
+3. **Data Publishing**: Each CSV row sent as JSON message to topic
+4. **Pattern Subscription**: Consumer subscribes to all topics using pattern `^(?!__).*`
+5. **Dynamic Tables**: Consumer creates `topic_customers` table in SQLite
+6. **Metadata Tracking**: Topic registered in `topics` metadata table
+7. **Data Storage**: Messages stored in topic-specific table
+8. **UI Display**: Frontend shows "customers" tab with record count
+
+### Database Schema
+
+**Metadata Table:**
+
+```sql
+CREATE TABLE topics (
+    topic_name TEXT PRIMARY KEY,
+    table_name TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+```
+
+**Topic-Specific Tables:**
+
+```sql
+CREATE TABLE topic_{name} (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    row_number INTEGER,
+    filename TEXT,
+    data TEXT,  -- JSON string
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+```
 
 ## Data Flow
 
 1. **Upload**: User uploads CSV file via React frontend or directly to Producer API
-2. **Parse & Send**: Producer API parses CSV and sends each row to Kafka topic `csv-data`
-3. **Consume**: Consumer API reads messages from Kafka topic in real-time
-4. **Store**: Data is stored in SQLite database (`consumer/data/kafka_data.db`)
-5. **Query**: Access stored data via Consumer API endpoints or SQLite directly
+2. **Parse & Send**: Producer API parses CSV and sends each row as JSON to topic (named after filename)
+3. **Topic Creation**: Producer creates Kafka topic if it doesn't exist using KafkaAdminClient
+4. **Consume**: Consumer API subscribes to all topics via pattern matching
+5. **Table Creation**: Consumer creates topic-specific SQLite table on first message
+6. **Store**: Data is stored in topic-specific table (e.g., `topic_customers`)
+7. **Metadata**: Topic registered in `topics` table with record count
+8. **Display**: Frontend shows tabs for each topic with live data updates
+9. **Query**: Access data via topic-specific endpoints or directly in SQLite
 
 ## Technology Stack
 
@@ -193,27 +235,27 @@ The project includes ready-to-use sample CSV files:
 
 ### Backend
 
-- **FastAPI 0.104.1** - Modern Python web framework
-- **kafka-python 2.0.2** - Kafka client library
-- **SQLite** - Lightweight embedded database
+- **FastAPI 0.104.1** - Modern Python web framework with OpenAPI support
+- **kafka-python 2.0.2** - Kafka client library with KafkaAdminClient
+- **SQLite** - Lightweight embedded database with topic-specific tables
 - **Python 3.11** - Programming language
 
 ### Frontend
 
-- **React 18.2.0** - UI library
+- **React 18.2.0** - UI library with hooks
 - **TypeScript 5.2.2** - Type-safe JavaScript
-- **Vite** - Next-generation frontend tooling
-- **Axios 1.6.2** - HTTP client
-- **Node.js 18** - JavaScript runtime
+- **Vite 5.0.8** - Next-generation frontend tooling
+- **Axios 1.6.2** - HTTP client for API communication
+- **Node.js 20** - JavaScript runtime
 
 ## Troubleshooting
 
 If you encounter issues:
 
 1. Ensure Docker Desktop is running
-2. Check if ports 2181, 3000, 8000, 8001, 8080, 9092, and 9093 are not in use
+2. Check if ports 2181, 3000, 5174, 8000, 8001, 8080, 9092, and 9093 are not in use
 3. View logs for specific service: `docker compose logs -f [service-name]`
-   - Services: `zookeeper`, `kafka`, `kafka-ui`, `producer-api`, `consumer-api`, `frontend`
+   - Services: `zookeeper`, `kafka`, `kafka-ui`, `producer-api`, `consumer-api`, `frontend`, `consumer-frontend`
 4. Restart services: `docker compose restart`
 5. Rebuild containers: `docker compose up -d --build`
 6. Check Kafka connection: Visit <http://localhost:8000/health>
@@ -230,13 +272,28 @@ If you encounter issues:
 
 - Verify frontend container is running: `docker ps | grep frontend`
 - Check frontend logs: `docker logs kafka-frontend`
-- Ensure port 3000 is not in use
+- Check consumer-frontend logs: `docker logs kafka-consumer-frontend`
+- Ensure ports 3000 and 5174 are not in use
 
 **CSV upload fails:**
 
 - Check producer API health: <http://localhost:8000/health>
 - Verify CORS is enabled in producer API
 - Check file format (must be valid CSV)
+- Ensure topic creation succeeded (check Kafka UI)
+
+**Topics not appearing in Consumer Data Viewer:**
+
+- Ensure consumer is started: Check status in UI or call `/start-consumer`
+- Verify messages are in Kafka: Check Kafka UI at <http://localhost:8080>
+- Check consumer logs for errors: `docker logs consumer-api --tail 50`
+- Verify topic was created: Call `/topics` endpoint
+
+**Data not showing in specific tab:**
+
+- Click refresh button or wait for auto-refresh (5 seconds)
+- Check if consumer processed messages: Look for logs with "Stored record from topic"
+- Verify database table exists: `docker exec consumer-api ls /app/data/`
 
 ## Project Structure
 
@@ -245,35 +302,48 @@ If you encounter issues:
 ├── docker-compose.yml          # Orchestrates all services
 ├── producer/
 │   ├── Dockerfile              # Producer API container
-│   ├── app.py                  # FastAPI producer application
+│   ├── app.py                  # FastAPI producer with topic creation
 │   └── requirements.txt        # Python dependencies
 ├── consumer/
 │   ├── Dockerfile              # Consumer API container
-│   ├── app.py                  # FastAPI consumer application
+│   ├── app.py                  # FastAPI consumer with multi-topic support
 │   ├── requirements.txt        # Python dependencies
 │   └── data/                   # SQLite database directory
-│       └── kafka_data.db       # SQLite database file
+│       └── kafka_data.db       # SQLite database with topic tables
 ├── frontend/
-│   ├── Dockerfile              # Frontend container
+│   ├── Dockerfile              # Upload frontend container
 │   ├── package.json            # Node dependencies
 │   ├── vite.config.ts          # Vite configuration
 │   ├── tsconfig.json           # TypeScript configuration
 │   ├── index.html              # HTML entry point
 │   └── src/
 │       ├── main.tsx            # React entry point
-│       ├── App.tsx             # Main component
-│       ├── App.css             # Component styles
+│       ├── App.tsx             # Upload component
+│       ├── App.css             # Styles
 │       ├── types.ts            # TypeScript interfaces
 │       └── vite-env.d.ts       # Vite type definitions
-├── sample_customers.csv        # Sample customer data
-├── sample_products.csv         # Sample product data
-├── sample_orders.csv           # Sample order data
+├── consumer-frontend/
+│   ├── Dockerfile              # Data viewer frontend container
+│   ├── package.json            # Node dependencies
+│   ├── vite.config.ts          # Vite configuration
+│   ├── tsconfig.json           # TypeScript configuration
+│   ├── index.html              # HTML entry point
+│   └── src/
+│       ├── main.tsx            # React entry point
+│       ├── App.tsx             # Tabbed viewer component
+│       ├── App.css             # Styles with tab design
+│       ├── types.ts            # TypeScript interfaces (Topic, Record, Stats)
+│       └── vite-env.d.ts       # Vite type definitions
+├── customers.csv               # Sample customer data
+├── products.csv                # Sample product data
+├── orders.csv                  # Sample order data
+├── data.csv                    # Simple test data
 └── README.md                   # This file
 ```
 
 ## Development
 
-### Running Frontend Locally
+### Running Upload Frontend Locally
 
 ```bash
 cd frontend
@@ -281,7 +351,17 @@ npm install
 npm run dev
 ```
 
-The frontend will be available at <http://localhost:5173> (Vite's default port).
+The upload frontend will be available at <http://localhost:5173> (Vite's default port).
+
+### Running Consumer Data Viewer Locally
+
+```bash
+cd consumer-frontend
+npm install
+npm run dev
+```
+
+The data viewer will be available at <http://localhost:5173>.
 
 ### Running APIs Locally
 
@@ -300,6 +380,41 @@ cd consumer
 pip install -r requirements.txt
 uvicorn app:app --reload --port 8001
 ```
+
+## Architecture Highlights
+
+### Producer Features
+
+- **KafkaAdminClient**: Manages topic lifecycle
+- **Dynamic Topic Naming**: Converts filename to valid topic name (lowercase, underscores)
+- **Topic Creation Check**: Creates topic only if it doesn't exist
+- **Configurable Partitions**: Default 3 partitions, replication factor 1
+
+### Consumer Features
+
+- **Pattern Subscription**: Subscribes to all non-internal topics using regex `^(?!__).*`
+- **Dynamic Table Creation**: Creates SQLite table for each new topic
+- **Metadata Tracking**: Maintains `topics` table for topic discovery
+- **Topic-Specific Storage**: Isolates data by topic in separate tables
+- **JSON Data Storage**: Stores CSV data as JSON for flexible querying
+
+### Frontend Architecture
+
+- **Tab State Management**: Active tab persists across refreshes
+- **Auto-Refresh**: Updates every 5 seconds when consumer is active
+- **Pagination State**: Separate pagination for each topic
+- **Dynamic Columns**: Table adapts to CSV structure
+- **Gradient Tabs**: Active tab uses gradient matching app theme
+
+## Use Cases
+
+This project demonstrates patterns useful for:
+
+- **Multi-tenant Data Processing**: Isolate data by customer/tenant in separate topics
+- **File-based Streaming**: Convert batch files into streaming data
+- **Data Lake Ingestion**: Route different data types to appropriate storage
+- **Event-Driven ETL**: Transform and load data from various sources
+- **Real-time Dashboards**: Display live data updates by category/topic
 
 ## License
 
