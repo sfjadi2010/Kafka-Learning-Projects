@@ -68,20 +68,32 @@ function App() {
   };
 
   const startConsumer = async () => {
+    setError("");
     try {
-      await axios.post(`${API_URL}/start-consumer`);
+      const response = await axios.post(`${API_URL}/start-consumer`);
+      if (response.data.status === "already_running") {
+        setError("Consumer is already running");
+      }
       setConsumerRunning(true);
       setTimeout(fetchStats, 1000);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.detail || "Failed to start consumer");
+        setError(
+          err.response?.data?.detail ||
+            err.response?.data?.message ||
+            "Failed to start consumer"
+        );
       }
     }
   };
 
   const stopConsumer = async () => {
+    setError("");
     try {
-      await axios.post(`${API_URL}/stop-consumer`);
+      const response = await axios.post(`${API_URL}/stop-consumer`);
+      if (response.data.status === "not_running") {
+        setError("Consumer is not running");
+      }
       setConsumerRunning(false);
       setTimeout(fetchStats, 1000);
     } catch (err: unknown) {
