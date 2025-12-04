@@ -119,7 +119,36 @@ Retrieve paginated records from a specific topic:
 curl "http://localhost:8001/topics/customers/records?limit=10&offset=0"
 ```
 
-### 5. Get Consumer Statistics
+### 5. Update a Record
+
+Update a specific record in a topic:
+
+```bash
+curl -X PUT "http://localhost:8001/topics/customers/records/5" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Smith",
+    "email": "john.smith@example.com",
+    "age": "35",
+    "city": "New York"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "message": "Record updated successfully",
+  "updated_data": {
+    "name": "John Smith",
+    "email": "john.smith@example.com",
+    "age": "35",
+    "city": "New York"
+  }
+}
+```
+
+### 6. Get Consumer Statistics
 
 ```bash
 curl "http://localhost:8001/stats"
@@ -139,6 +168,7 @@ curl "http://localhost:8001/stats"
 - `POST /stop-consumer` - Stop the consumer
 - `GET /topics` - Get list of all topics with metadata
 - `GET /topics/{topic}/records` - Get records for specific topic (supports limit & offset)
+- `PUT /topics/{topic}/records/{record_id}` - Update a specific record in a topic
 - `DELETE /topics/{topic}` - Delete specific topic (archives data, drops table, deletes Kafka topic)
 - `GET /records` - Get all stored records (deprecated - use topic-specific endpoint)
 - `GET /stats` - Get consumer statistics
@@ -162,6 +192,8 @@ Modern tabbed interface for viewing data by topic:
 
 - **Topic Tabs** - Each Kafka topic displayed in separate tab with hover-based delete button
 - **Record Counts** - Badge showing number of records per topic
+- **Dynamic Search** - Real-time search across all columns with row highlighting
+- **Row Editing** - Click any row to open modal editor with all fields
 - **Individual Topic Deletion** - Delete button (✕) on each tab for topic-specific cleanup
 - **Bulk Deletion** - Delete All button for removing all topics at once
 - **Audit Trail** - All deletions automatically archive data before removal
@@ -250,8 +282,9 @@ CREATE TABLE audit_topic_{name} (
 4. **Consume**: Consumer API subscribes to all topics via pattern matching
 5. **Table Creation**: Consumer creates topic-specific SQLite table on first message
 6. **Store**: Data is stored in topic-specific table (e.g., `topic_customers`)
-7. **Metadata**: Topic registered in `topics` table with record count
-8. **Display**: Frontend shows tabs for each topic with live data updates
+6. **Metadata**: Topic registered in `topics` table with record count
+7. **Display**: Frontend shows tabs for each topic with live data updates
+8. **Search & Edit**: Users can search data dynamically and edit records via modal popup
 9. **Query**: Access data via topic-specific endpoints or directly in SQLite
 10. **Delete (Individual)**: User clicks ✕ on tab → Archives to `audit_topic_{name}` → Drops table → Deletes Kafka topic
 11. **Delete (All)**: User clicks Delete All → Stops consumer → Archives all to audit tables → Drops all tables → Deletes all Kafka topics
@@ -394,6 +427,39 @@ npm run dev
 ```
 
 The data viewer will be available at <http://localhost:5173>.
+
+## Interactive Features
+
+### Search Functionality
+
+The Consumer Frontend includes a dynamic search feature:
+
+- **Real-time Search**: Type in the search box to filter rows across all columns
+- **Case-Insensitive**: Matches text regardless of capitalization
+- **Row Highlighting**: Matching rows are highlighted with a light pink background and pulse animation
+- **Clear Button**: Quickly clear search with the ✕ button
+- **Tab-Specific**: Search applies only to the currently active topic tab
+
+### Edit Records
+
+Click any row in the data viewer to open an edit modal:
+
+1. **Click Row**: Click any data row to open the edit popup
+2. **View/Edit Fields**: All fields displayed in a two-column layout (responsive to one column on mobile)
+3. **Make Changes**: Edit any field value directly in the modal
+4. **Save**: Click "Save Changes" to persist updates to the database
+5. **Cancel**: Click "Cancel" or click outside to close without saving
+
+**Features:**
+
+- **Persistent Changes**: Edits are saved to SQLite database and survive auto-refresh
+- **Modern UI**: Purple gradient header matching app theme
+- **Responsive Layout**: Two-column grid on desktop, single column on mobile
+- **Smooth Animations**: Fade-in overlay and slide-up content animations
+
+**API Integration:**
+
+The modal uses the `PUT /topics/{topic}/records/{record_id}` endpoint to persist changes. Updated data is immediately reflected in the UI and database.
 
 ### Running APIs Locally
 
