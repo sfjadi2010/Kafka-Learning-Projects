@@ -160,6 +160,16 @@
   flex-wrap: wrap;
 }
 
+.tab-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.tab-wrapper:hover .tab-delete {
+  opacity: 1;
+}
+
 .tab {
   padding: 12px 24px;
   border: 2px solid transparent;
@@ -197,6 +207,36 @@
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 700;
+}
+
+.tab-delete {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  border: 2px solid white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.tab-delete:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+
+.tab-wrapper.active .tab-delete {
+  opacity: 1;
 }
 
 .tab.active .badge {

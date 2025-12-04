@@ -129,15 +129,56 @@ function App() {
   };
 
   const deleteAllRecords = async () => {
-    if (window.confirm("Are you sure you want to delete all records?")) {
+    if (
+      window.confirm(
+        "Are you sure you want to delete all records? This will archive and delete all topics."
+      )
+    ) {
       try {
         await axios.delete(`${API_URL}/records`);
         setRecords([]);
         setTotalRecords(0);
+        setTopics([]);
+        setActiveTab(null);
         fetchStats();
+        fetchTopics();
       } catch (err: unknown) {
         if (axios.isAxiosError(err)) {
           setError(err.response?.data?.detail || "Failed to delete records");
+        }
+      }
+    }
+  };
+
+  const deleteTopic = async (topic: string) => {
+    if (
+      window.confirm(
+        `Are you sure you want to delete topic "${topic}"? This will archive and delete all data for this topic.`
+      )
+    ) {
+      try {
+        await axios.delete(`${API_URL}/topics/${topic}`);
+
+        // Remove topic from state
+        const updatedTopics = topics.filter((t) => t.topic_name !== topic);
+        setTopics(updatedTopics);
+
+        // If deleted topic was active, switch to another tab or clear
+        if (activeTab === topic) {
+          if (updatedTopics.length > 0) {
+            setActiveTab(updatedTopics[0].topic_name);
+          } else {
+            setActiveTab(null);
+            setRecords([]);
+            setTotalRecords(0);
+          }
+        }
+
+        fetchStats();
+        fetchTopics();
+      } catch (err: unknown) {
+        if (axios.isAxiosError(err)) {
+          setError(err.response?.data?.detail || "Failed to delete topic");
         }
       }
     }
@@ -234,19 +275,35 @@ function App() {
       {topics.length > 0 && (
         <div className="tabs">
           {topics.map((topic) => (
-            <button
+            <div
               key={topic.topic_name}
-              className={`tab ${
+              className={`tab-wrapper ${
                 activeTab === topic.topic_name ? "active" : ""
               }`}
-              onClick={() => {
-                setActiveTab(topic.topic_name);
-                setOffset(0);
-              }}
             >
-              {topic.topic_name}
-              <span className="badge">{topic.record_count}</span>
-            </button>
+              <button
+                className={`tab ${
+                  activeTab === topic.topic_name ? "active" : ""
+                }`}
+                onClick={() => {
+                  setActiveTab(topic.topic_name);
+                  setOffset(0);
+                }}
+              >
+                {topic.topic_name}
+                <span className="badge">{topic.record_count}</span>
+              </button>
+              <button
+                className="tab-delete"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteTopic(topic.topic_name);
+                }}
+                title={`Delete ${topic.topic_name}`}
+              >
+                ✕
+              </button>
+            </div>
           ))}
         </div>
       )}

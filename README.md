@@ -18,8 +18,8 @@ This project demonstrates a complete Apache Kafka pipeline with dynamic topic cr
 - **Kafka UI**: Web-based UI for managing Kafka (Port 8080)
 - **Producer API**: FastAPI service to upload CSV files and create topics (Port 8000)
 - **Consumer API**: FastAPI service to consume from all topics and store in topic-specific tables (Port 8001)
-- **Frontend**: Vite + React + TypeScript UI for CSV upload (Port 3000)
-- **Consumer Data Viewer**: React UI with tabbed interface for viewing topic data (Port 5174)
+- **Producer Frontend**: Vite + React + TypeScript UI for CSV upload (Port 3000)
+- **Consumer Frontend**: React UI with tabbed interface for viewing topic data (Port 5174)
 
 ## Getting Started
 
@@ -38,8 +38,8 @@ docker compose up -d --build
 
 Once running, access:
 
-- **React TypeScript Frontend (Upload)**: <http://localhost:3000> - Modern UI with drag-and-drop CSV upload
-- **Consumer Data Viewer (Tabbed UI)**: <http://localhost:5174> - View data by topic in separate tabs
+- **Producer Frontend (Upload)**: <http://localhost:3000> - Modern UI with drag-and-drop CSV upload
+- **Consumer Frontend (Tabbed UI)**: <http://localhost:5174> - View data by topic in separate tabs
 - **Kafka UI**: <http://localhost:8080> - Kafka cluster management
 - **Producer API**: <http://localhost:8000/docs> - Swagger UI for CSV upload API
 - **Consumer API**: <http://localhost:8001/docs> - Swagger UI for data retrieval
@@ -143,7 +143,7 @@ curl "http://localhost:8001/stats"
 
 ## Frontend Features
 
-### CSV Upload Frontend (Port 3000)
+### Producer Frontend (Port 3000)
 
 The React TypeScript frontend provides a modern, user-friendly interface:
 
@@ -153,7 +153,7 @@ The React TypeScript frontend provides a modern, user-friendly interface:
 - **Type-safe development** - Built with TypeScript for better code quality
 - **Fast development** - Powered by Vite with Hot Module Replacement (HMR)
 
-### Consumer Data Viewer (Port 5174)
+### Consumer Frontend (Port 5174)
 
 Modern tabbed interface for viewing data by topic:
 
@@ -255,7 +255,7 @@ If you encounter issues:
 1. Ensure Docker Desktop is running
 2. Check if ports 2181, 3000, 5174, 8000, 8001, 8080, 9092, and 9093 are not in use
 3. View logs for specific service: `docker compose logs -f [service-name]`
-   - Services: `zookeeper`, `kafka`, `kafka-ui`, `producer-api`, `consumer-api`, `frontend`, `consumer-frontend`
+   - Services: `zookeeper`, `kafka`, `kafka-ui`, `producer-api`, `consumer-api`, `producer-frontend`, `consumer-frontend`
 4. Restart services: `docker compose restart`
 5. Rebuild containers: `docker compose up -d --build`
 6. Check Kafka connection: Visit <http://localhost:8000/health>
@@ -270,8 +270,8 @@ If you encounter issues:
 
 **Frontend not loading:**
 
-- Verify frontend container is running: `docker ps | grep frontend`
-- Check frontend logs: `docker logs kafka-frontend`
+- Verify frontend containers are running: `docker ps | grep frontend`
+- Check producer-frontend logs: `docker logs kafka-producer-frontend`
 - Check consumer-frontend logs: `docker logs kafka-consumer-frontend`
 - Ensure ports 3000 and 5174 are not in use
 
@@ -282,7 +282,7 @@ If you encounter issues:
 - Check file format (must be valid CSV)
 - Ensure topic creation succeeded (check Kafka UI)
 
-**Topics not appearing in Consumer Data Viewer:**
+**Topics not appearing in Consumer Frontend:**
 
 - Ensure consumer is started: Check status in UI or call `/start-consumer`
 - Verify messages are in Kafka: Check Kafka UI at <http://localhost:8080>
@@ -310,7 +310,7 @@ If you encounter issues:
 │   ├── requirements.txt        # Python dependencies
 │   └── data/                   # SQLite database directory
 │       └── kafka_data.db       # SQLite database with topic tables
-├── frontend/
+├── producer-frontend/
 │   ├── Dockerfile              # Upload frontend container
 │   ├── package.json            # Node dependencies
 │   ├── vite.config.ts          # Vite configuration
@@ -343,17 +343,17 @@ If you encounter issues:
 
 ## Development
 
-### Running Upload Frontend Locally
+### Running Producer Frontend Locally
 
 ```bash
-cd frontend
+cd producer-frontend
 npm install
 npm run dev
 ```
 
-The upload frontend will be available at <http://localhost:5173> (Vite's default port).
+The producer frontend will be available at <http://localhost:5173> (Vite's default port).
 
-### Running Consumer Data Viewer Locally
+### Running Consumer Frontend Locally
 
 ```bash
 cd consumer-frontend

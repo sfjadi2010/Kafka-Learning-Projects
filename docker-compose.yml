@@ -80,17 +80,17 @@ services:
       - kafka-network
     restart: unless-stopped
 
-  frontend:
+  producer-frontend:
     build:
-      context: ./frontend
+      context: ./producer-frontend
       dockerfile: Dockerfile
-    container_name: kafka-frontend
+    container_name: kafka-producer-frontend
     depends_on:
       - producer-api
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
+      - ./producer-frontend:/app
       - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:8000

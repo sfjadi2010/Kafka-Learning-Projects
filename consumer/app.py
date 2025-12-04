@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from kafka import KafkaConsumer
+from kafka.admin import KafkaAdminClient, NewTopic
 import sqlite3
 import json
 import logging
@@ -176,14 +177,22 @@ async def root():
 async def health_check():
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) as count FROM csv_records")
-        count = cursor.fetchone()[0]
+        
+        # Count total records across all topic tables
+        total_count = 0
+        cursor.execute('SELECT table_name FROM topics')
+        topics = cursor.fetchall()
+        
+        for topic in topics:
+            table_name = topic['table_name']
+            cursor.execute(f'SELECT COUNT(*) as count FROM {table_name}')
+            total_count += cursor.fetchone()['count']
     
     return {
         "status": "healthy",
         "database": "connected",
         "consumer_active": is_consuming,
-        "total_records": count
+        "total_records": total_count
     }
 
 @app.post("/start-consumer")
@@ -270,10 +279,18 @@ async def get_record_count():
     """Get total count of stored records"""
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) as count FROM csv_records")
-        count = cursor.fetchone()[0]
+        
+        # Count records across all topic tables
+        total_count = 0
+        cursor.execute('SELECT table_name FROM topics')
+        topics = cursor.fetchall()
+        
+        for topic in topics:
+            table_name = topic['table_name']
+            cursor.execute(f'SELECT COUNT(*) as count FROM {table_name}')
+            total_count += cursor.fetchone()['count']
     
-    return {"total_records": count}
+    return {"total_records": total_count}
 
 @app.get("/stats")
 async def get_stats():
@@ -281,14 +298,25 @@ async def get_stats():
     with get_db_connection() as conn:
         cursor = conn.cursor()
         
-        # Get actual record count from csv_records table
-        cursor.execute('SELECT COUNT(*) as total FROM csv_records')
-        total_count = cursor.fetchone()['total']
+        # Get total record count across all topic tables
+        total_count = 0
+        last_consumed_at = None
         
-        # Get last record timestamp
-        cursor.execute('SELECT created_at FROM csv_records ORDER BY created_at DESC LIMIT 1')
-        last_record = cursor.fetchone()
-        last_consumed_at = last_record['created_at'] if last_record else None
+        cursor.execute('SELECT table_name FROM topics')
+        topics = cursor.fetchall()
+        
+        for topic in topics:
+            table_name = topic['table_name']
+            cursor.execute(f'SELECT COUNT(*) as count FROM {table_name}')
+            total_count += cursor.fetchone()['count']
+            
+            # Get latest timestamp from this table
+            cursor.execute(f'SELECT created_at FROM {table_name} ORDER BY created_at DESC LIMIT 1')
+            last_record = cursor.fetchone()
+            if last_record:
+                record_time = last_record['created_at']
+                if last_consumed_at is None or record_time > last_consumed_at:
+                    last_consumed_at = record_time
         
         # Determine status based on consumer state and record count
         if is_consuming:
@@ -309,14 +337,176 @@ async def get_stats():
 
 @app.delete("/records")
 async def delete_all_records():
-    """Delete all records from database"""
+    """Delete all records from all topic tables and Kafka topics after archiving to audit tables"""
+    global is_consuming
+    
+    # Stop consumer first to prevent recreation of topics
+    was_running = is_consuming
+    if is_consuming:
+        is_consuming = False
+        logger.info("Stopped consumer for deletion")
+        # Give it a moment to stop
+        import time
+        time.sleep(2)
+    
+    topics_to_delete = []
+    audited_tables = []
+    
     with get_db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM csv_records")
-        cursor.execute("DELETE FROM consumer_stats")
+        
+        # Get all topic names and tables
+        cursor.execute('SELECT topic_name, table_name FROM topics')
+        topics = cursor.fetchall()
+        
+        # Collect topic names for Kafka deletion
+        topics_to_delete = [topic['topic_name'] for topic in topics]
+        
+        # Archive and delete records from each topic table
+        for topic in topics:
+            table_name = topic['table_name']
+            audit_table_name = f"audit_{table_name}"
+            
+            try:
+                # Create audit table as a copy of the original table structure
+                cursor.execute(f'''
+                    CREATE TABLE IF NOT EXISTS {audit_table_name} AS 
+                    SELECT *, datetime('now') as archived_at 
+                    FROM {table_name} 
+                    WHERE 1=0
+                ''')
+                
+                # If table is empty, create it with the schema
+                cursor.execute(f"SELECT COUNT(*) as count FROM {table_name}")
+                count = cursor.fetchone()['count']
+                
+                if count == 0:
+                    # Create audit table with same structure
+                    cursor.execute(f'''
+                        CREATE TABLE IF NOT EXISTS {audit_table_name} (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            row_number INTEGER,
+                            filename TEXT,
+                            data TEXT,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    ''')
+                else:
+                    # Copy all data to audit table with archive timestamp
+                    cursor.execute(f'''
+                        INSERT INTO {audit_table_name} 
+                        SELECT *, datetime('now') as archived_at 
+                        FROM {table_name}
+                    ''')
+                
+                # Drop the original table
+                cursor.execute(f'DROP TABLE IF EXISTS {table_name}')
+                audited_tables.append(audit_table_name)
+                logger.info(f"Archived {count} records from {table_name} to {audit_table_name}")
+                
+            except Exception as e:
+                logger.error(f"Error archiving table {table_name}: {str(e)}")
+        
+        # Archive topics metadata
+        try:
+            # Create audit_topics table if it doesn't exist
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS audit_topics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    topic_name TEXT,
+                    table_name TEXT,
+                    created_at TIMESTAMP,
+                    archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Copy topics to audit
+            cursor.execute('''
+                INSERT INTO audit_topics (topic_name, table_name, created_at)
+                SELECT topic_name, table_name, created_at FROM topics
+            ''')
+            
+            # Delete all topics metadata
+            cursor.execute('DELETE FROM topics')
+            logger.info("Archived topics metadata to audit_topics")
+        except Exception as e:
+            logger.error(f"Error archiving topics metadata: {str(e)}")
+        
+        # Handle old tables if they exist (for backwards compatibility)
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='csv_records'")
+        if cursor.fetchone():
+            try:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS audit_csv_records AS 
+                    SELECT *, datetime('now') as archived_at 
+                    FROM csv_records
+                ''')
+                cursor.execute("DROP TABLE IF EXISTS csv_records")
+                audited_tables.append("audit_csv_records")
+            except Exception as e:
+                logger.error(f"Error archiving csv_records: {str(e)}")
+        
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='consumer_stats'")
+        if cursor.fetchone():
+            try:
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS audit_consumer_stats AS 
+                    SELECT *, datetime('now') as archived_at 
+                    FROM consumer_stats
+                ''')
+                cursor.execute("DROP TABLE IF EXISTS consumer_stats")
+                audited_tables.append("audit_consumer_stats")
+            except Exception as e:
+                logger.error(f"Error archiving consumer_stats: {str(e)}")
+        
         conn.commit()
     
-    return {"status": "success", "message": "All records deleted"}
+    # Delete Kafka topics
+    deleted_topics = []
+    failed_topics = []
+    
+    if topics_to_delete:
+        try:
+            admin_client = KafkaAdminClient(
+                bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+                client_id='consumer-admin'
+            )
+            
+            # Delete topics from Kafka
+            result = admin_client.delete_topics(topics_to_delete, timeout_ms=5000)
+            
+            # Wait for deletion to complete
+            for topic, future in result.items():
+                try:
+                    future.result()  # Block until topic is deleted
+                    deleted_topics.append(topic)
+                    logger.info(f"Successfully deleted Kafka topic: {topic}")
+                except Exception as e:
+                    failed_topics.append(topic)
+                    logger.error(f"Failed to delete Kafka topic {topic}: {str(e)}")
+            
+            admin_client.close()
+        except Exception as e:
+            logger.error(f"Error connecting to Kafka admin: {str(e)}")
+            return {
+                "status": "partial_success",
+                "message": "Data archived but failed to connect to Kafka",
+                "audited_tables": audited_tables,
+                "error": str(e)
+            }
+    
+    message = "All records archived and deleted, Kafka topics removed"
+    if failed_topics:
+        message += f" (Failed to delete Kafka topics: {', '.join(failed_topics)})"
+    
+    return {
+        "status": "success",
+        "message": message,
+        "audited_tables": audited_tables,
+        "deleted_kafka_topics": deleted_topics,
+        "failed_kafka_topics": failed_topics
+    }
 
 @app.get("/topics")
 async def get_topics():
@@ -347,6 +537,101 @@ async def get_topics():
             })
     
     return {"topics": topics}
+
+@app.delete("/topics/{topic}")
+async def delete_topic(topic: str):
+    """Delete a specific topic's data and Kafka topic after archiving"""
+    table_name = get_table_name_from_topic(topic)
+    audit_table_name = f"audit_{table_name}"
+    
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Verify topic exists
+        cursor.execute('SELECT topic_name, table_name FROM topics WHERE topic_name = ?', (topic,))
+        topic_row = cursor.fetchone()
+        if not topic_row:
+            raise HTTPException(status_code=404, detail=f"Topic '{topic}' not found")
+        
+        try:
+            # Get record count
+            cursor.execute(f'SELECT COUNT(*) as count FROM {table_name}')
+            count = cursor.fetchone()['count']
+            
+            # Archive the data
+            if count > 0:
+                cursor.execute(f'''
+                    CREATE TABLE IF NOT EXISTS {audit_table_name} AS 
+                    SELECT *, datetime('now') as archived_at 
+                    FROM {table_name} 
+                    WHERE 1=0
+                ''')
+                
+                cursor.execute(f'''
+                    INSERT INTO {audit_table_name} 
+                    SELECT *, datetime('now') as archived_at 
+                    FROM {table_name}
+                ''')
+                logger.info(f"Archived {count} records from {table_name} to {audit_table_name}")
+            else:
+                # Create empty audit table
+                cursor.execute(f'''
+                    CREATE TABLE IF NOT EXISTS {audit_table_name} (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        row_number INTEGER,
+                        filename TEXT,
+                        data TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+            
+            # Drop the original table
+            cursor.execute(f'DROP TABLE IF EXISTS {table_name}')
+            
+            # Remove from topics metadata
+            cursor.execute('DELETE FROM topics WHERE topic_name = ?', (topic,))
+            
+            conn.commit()
+            
+        except Exception as e:
+            logger.error(f"Error archiving topic {topic}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to archive topic: {str(e)}")
+    
+    # Delete Kafka topic
+    kafka_deleted = False
+    kafka_error = None
+    
+    try:
+        admin_client = KafkaAdminClient(
+            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
+            client_id='consumer-admin'
+        )
+        
+        result = admin_client.delete_topics([topic], timeout_ms=5000)
+        
+        for topic_name, future in result.items():
+            try:
+                future.result()
+                kafka_deleted = True
+                logger.info(f"Successfully deleted Kafka topic: {topic_name}")
+            except Exception as e:
+                kafka_error = str(e)
+                logger.error(f"Failed to delete Kafka topic {topic_name}: {str(e)}")
+        
+        admin_client.close()
+    except Exception as e:
+        kafka_error = str(e)
+        logger.error(f"Error connecting to Kafka admin: {str(e)}")
+    
+    return {
+        "status": "success",
+        "message": f"Topic '{topic}' archived and deleted",
+        "archived_table": audit_table_name,
+        "records_archived": count,
+        "kafka_topic_deleted": kafka_deleted,
+        "kafka_error": kafka_error
+    }
 
 @app.get("/topics/{topic}/records")
 async def get_topic_records(topic: str, limit: int = 100, offset: int = 0):
