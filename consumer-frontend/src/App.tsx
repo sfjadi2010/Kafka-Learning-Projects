@@ -209,7 +209,9 @@ function App() {
     if (!searchTerm.trim()) return false;
     const searchLower = searchTerm.toLowerCase();
     return getColumns().some((col) =>
-      String(record.data[col] || "").toLowerCase().includes(searchLower)
+      String(record.data[col] || "")
+        .toLowerCase()
+        .includes(searchLower)
     );
   };
 
@@ -288,36 +290,36 @@ function App() {
         <div className="tabs-container">
           <div className="tabs">
             {topics.map((topic) => (
-            <div
-              key={topic.topic_name}
-              className={`tab-wrapper ${
-                activeTab === topic.topic_name ? "active" : ""
-              }`}
-            >
-              <button
-                className={`tab ${
+              <div
+                key={topic.topic_name}
+                className={`tab-wrapper ${
                   activeTab === topic.topic_name ? "active" : ""
                 }`}
-                onClick={() => {
-                  setActiveTab(topic.topic_name);
-                  setOffset(0);
-                }}
               >
-                {topic.topic_name}
-                <span className="badge">{topic.record_count}</span>
-              </button>
-              <button
-                className="tab-delete"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteTopic(topic.topic_name);
-                }}
-                title={`Delete ${topic.topic_name}`}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
+                <button
+                  className={`tab ${
+                    activeTab === topic.topic_name ? "active" : ""
+                  }`}
+                  onClick={() => {
+                    setActiveTab(topic.topic_name);
+                    setOffset(0);
+                  }}
+                >
+                  {topic.topic_name}
+                  <span className="badge">{topic.record_count}</span>
+                </button>
+                <button
+                  className="tab-delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteTopic(topic.topic_name);
+                  }}
+                  title={`Delete ${topic.topic_name}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
           <div className="search-box">
             <input
@@ -365,7 +367,10 @@ function App() {
               <tbody>
                 {records &&
                   records.map((record, idx) => (
-                    <tr key={idx} className={isRowMatch(record) ? "highlight" : ""}>
+                    <tr
+                      key={idx}
+                      className={isRowMatch(record) ? "highlight" : ""}
+                    >
                       {getColumns().map((col) => (
                         <td key={col}>{String(record.data[col] || "")}</td>
                       ))}
